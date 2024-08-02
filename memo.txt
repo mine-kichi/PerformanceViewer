@@ -1,0 +1,89 @@
+using System;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Windows.Forms;
+
+namespace WebScraper
+{
+    public partial class MainForm : Form
+    {
+        public MainForm()
+        {
+            InitializeComponent();
+        }
+
+        private void loginButton_Click(object sender, EventArgs e)
+        {
+            string loginUrl = "https://example.com/login"; // ログインURLを指定
+            string targetUrl = "https://example.com/targetPage"; // ターゲットURLを指定
+            string username = usernameTextBox.Text;
+            string password = passwordTextBox.Text;
+
+            // クッキーコンテナを作成
+            CookieContainer cookies = new CookieContainer();
+
+            // ログインリクエストを作成
+            HttpWebRequest loginRequest = (HttpWebRequest)WebRequest.Create(loginUrl);
+            loginRequest.Method = "POST";
+            loginRequest.ContentType = "application/x-www-form-urlencoded";
+            loginRequest.CookieContainer = cookies;
+
+            // POSTデータを作成
+            string postData = $"username={username}&password={password}";
+            byte[] byteArray = Encoding.UTF8.GetBytes(postData);
+            loginRequest.ContentLength = byteArray.Length;
+
+            // POSTデータを送信
+            using (Stream dataStream = loginRequest.GetRequestStream())
+            {
+                dataStream.Write(byteArray, 0, byteArray.Length);
+            }
+
+            // ログインレスポンスを取得
+            HttpWebResponse loginResponse = (HttpWebResponse)loginRequest.GetResponse();
+            loginResponse.Close();
+
+            // ターゲットページリクエストを作成
+            HttpWebRequest targetRequest = (HttpWebRequest)WebRequest.Create(targetUrl);
+            targetRequest.Method = "GET";
+            targetRequest.CookieContainer = cookies;
+
+            // ターゲットページレスポンスを取得
+            HttpWebResponse targetResponse = (HttpWebResponse)targetRequest.GetResponse();
+
+            // レスポンスをストリームとして読み取る
+            using (Stream responseStream = targetResponse.GetResponseStream())
+            {
+                using (StreamReader reader = new StreamReader(responseStream, Encoding.UTF8))
+                {
+                    string responseText = reader.ReadToEnd();
+                    ExtractTextFromHtml(responseText);
+                }
+            }
+
+            targetResponse.Close();
+        }
+
+        private void ExtractTextFromHtml(string html)
+        {
+            // HTMLを解析してテキストを抽出（例：pタグの内容を抽出）
+            StringBuilder extractedText = new StringBuilder();
+            int startIndex = 0;
+
+            while ((startIndex = html.IndexOf("<p>", startIndex)) != -1)
+            {
+                startIndex += 3; // <p>の長さ
+                int endIndex = html.IndexOf("</p>", startIndex);
+                if (endIndex == -1) break;
+
+                string paragraph = html.Substring(startIndex, endIndex - startIndex);
+                extractedText.AppendLine(paragraph);
+                startIndex = endIndex + 4; // </p>の長さ
+            }
+
+            // 抽出結果を表示
+            resultTextBox.Text = extractedText.ToString();
+        }
+    }
+}
